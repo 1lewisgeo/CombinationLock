@@ -38,6 +38,9 @@ fun main(args: Array<String>) {
 
     // Using the algorithm copied from lock client
 
+    /**
+     * Brute forces the lock by testing all combinations sequentially
+     */
     fun bruteforce(lock: CombinationLock) {
 
         with(lock) {

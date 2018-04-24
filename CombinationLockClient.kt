@@ -3,11 +3,15 @@ import java.util.*
 
 fun main(args: Array<String>) {
 
+    // The lock
     val lock = CombinationLock()
 
     println("Welcome to the Lock Client")
 
+    // Main loop
     outer@ while (true) {
+
+        // CLIENT MENU OUTPUT
 
         print("====================LOCK====================\n" +
                 "| STATUS: ${if (lock.broken) "Broken" else (if (lock.locked) "Locked" else "Unlocked")}\n" +
@@ -59,6 +63,8 @@ fun main(args: Array<String>) {
             }
         }
 
+        // INPUT VALIDATION
+
         if (!lock.validateCombination()) {
             println("NOTE: LOCK COMBINATION IS INVALID ACCORDING TO NEW MIN / MAX; MUST BE SET A NEW COMBINATION")
         }
@@ -88,6 +94,8 @@ fun main(args: Array<String>) {
             println("You must change the combination")
             continue@outer
         }
+
+        // INPUT ACTION
 
         when (input) {
             1 -> {
@@ -262,6 +270,8 @@ fun main(args: Array<String>) {
             }
             18 -> println(lock.toString())
         }
+
+        // Pause output between commands
 
         print("Press return to continue...")
 
