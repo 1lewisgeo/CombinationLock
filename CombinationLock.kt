@@ -11,6 +11,12 @@ fun File.ObjectInputStream(): ObjectInputStream = ObjectInputStream(inputStream(
 
 class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10) })) : ICombinationLock {
 
+    init {
+        if (combination_.size < 3) {
+            throw InstantiationException("CombinationLock must be instantiated with a combination of at least length 3")
+        }
+    }
+
     val size
     get() = combination_.size
 
@@ -97,56 +103,60 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10
     override fun resetHealth() = if (adminMode) run { health = 100 } else {}
 
     override fun save(filename: String): Boolean {
-        try {
-            File(filename).ObjectOutputStream().use {
-                for (x in listOf(
-                        combination,
-                        health,
-                        locked,
-                        unlockAttempts,
-                        pickAttempts,
-                        password,
-                        min,
-                        max
-                )) {
-                    it.writeObject(x)
+        if (adminMode) {
+            try {
+                File(filename).ObjectOutputStream().use {
+                    for (x in listOf(
+                            combination,
+                            health,
+                            locked,
+                            unlockAttempts,
+                            pickAttempts,
+                            password,
+                            min,
+                            max
+                    )) {
+                        it.writeObject(x)
+                    }
                 }
+            } catch (e: IOException) {
+                return false
             }
-        } catch (e: IOException) {
-            return false
         }
         return true
     }
 
     override fun load(filename: String): Boolean {
-        try {
-            File(filename).ObjectInputStream().use {
-                for (i in 0..5) {
-                    val value = it.readObject()
-                    when (i) {
-                        0 -> combination = value as IntArray
-                        1 -> health = value as Int
-                        2 -> locked = value as Boolean
-                        3 -> unlockAttempts = value as Int
-                        4 -> pickAttempts = value as Int
-                        5 -> password = value as String
-                        6 -> min = value as Int
-                        7 -> max = value as Int
+        if (adminMode) {
+            try {
+                File(filename).ObjectInputStream().use {
+                    for (i in 0..7) {
+                        val value = it.readObject()
+                        when (i) {
+                            0 -> combination = value as IntArray
+                            1 -> health = value as Int
+                            2 -> locked = value as Boolean
+                            3 -> unlockAttempts = value as Int
+                            4 -> pickAttempts = value as Int
+                            5 -> password = value as String
+                            6 -> min = value as Int
+                            7 -> max = value as Int
+                        }
                     }
                 }
+            } catch (e: IOException) {
+                return false
             }
-        } catch (e: IOException) {
-            return false
         }
         return true
     }
 
     override fun setCombination(combination: IntArray): Boolean {
         if (!broken and adminMode) {
-            if (combination.all { it in min..(max+1) }) {
+            if (combination.all { it in min..(max+1) } && combination.size >= 3) {
                 this.combination = combination
                 this.combination_ = combination
-                lock.lock()
+                lock()
                 return true
             } else {
                 return false
@@ -156,11 +166,10 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10
         }
     }
 
-    fun validateCombination() = lock.combination_.all { it >= lock.min && it <= lock.max }
+    fun validateCombination() = combination_.all { it >= min && it <= max }
 
     override fun toString(): String {
-        return Arrays.toString(combination_)
-        //return "{Combination : ${Arrays.toString(combination_)}, Health : ${lock.health}}"
+        return "{Combination : ${Arrays.toString(combination_)}, Health : $health}"
         //return mapOf("Combination" to Arrays.toString(combination_), "Health" to health, "Password" to password).toString()
     }
 

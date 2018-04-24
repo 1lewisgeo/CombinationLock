@@ -2,10 +2,6 @@ import java.util.*
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-fun println(vararg obj: Any) {
-    kotlin.io.println(listOf(obj.map { it.toString() }).joinToString(" | ").replace("[", "").replace("]", ""))
-}
-
 fun main(args: Array<String>) {
 
     var lock = CombinationLock(intArrayOf(7, 3, 5, 2, 9, 5))
@@ -137,11 +133,7 @@ fun main(args: Array<String>) {
 
     assert(lock.adminMode("qwerty")) // Enter admin with new password
 
-    println(lock.toString(), "{Combination=2, 5, 7, Health=${lock.health}, Password=qwerty}", lock.health)
-
-    println(lock.toString() == "{Combination : 2, 5, 7, Health : ${lock.health}}")
-
-    assert(lock.toString() == ("{Combination=2, 5, 7, Health=${lock.health}, Password=qwerty}")) // Check that toString is as expected
+    assert(lock.toString() == ("{Combination : [2, 5, 7], Health : ${lock.health}}")) // Check that toString is as expected
 
     assertFalse {
 
@@ -185,6 +177,8 @@ fun main(args: Array<String>) {
         assert( lock.locked )
 
         assert(lock.unlockAttempts == 0 && lock.pickAttempts == 0)
+
+        assert(lock.adminMode("DEFAULT"))
 
         // Load the lock
 

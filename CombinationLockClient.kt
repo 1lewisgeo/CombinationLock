@@ -1,9 +1,9 @@
 import java.io.File
 import java.util.*
 
-val lock = CombinationLock()
-
 fun main(args: Array<String>) {
+
+    val lock = CombinationLock()
 
     println("Welcome to the Lock Client")
 
