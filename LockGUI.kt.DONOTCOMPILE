@@ -1,0 +1,642 @@
+import javafx.application.Application
+import javafx.application.Platform
+import javafx.beans.property.SimpleBooleanProperty
+import javafx.event.ActionEvent
+import javafx.geometry.Pos
+import javafx.scene.Parent
+import javafx.scene.control.*
+import javafx.scene.input.KeyCode
+import javafx.scene.layout.HBox
+import javafx.scene.paint.Color
+import javafx.stage.FileChooser
+import javafx.stage.Screen
+import javafx.stage.Window
+import tornadofx.*
+import java.util.*
+import kotlin.math.pow
+
+class LockApp : App(LockView::class)
+
+class LockView : View() {
+
+    val lock = CombinationLock(combination_ = intArrayOf(0,0, 0, 8))
+
+    var lockInputs: MutableList<TextField> by singleAssign()
+
+    val adminmode = SimpleBooleanProperty(false)
+
+    var hbar: ProgressBar by singleAssign()
+
+    var adminlabel: Label by singleAssign()
+
+    var passfield: PasswordField by singleAssign()
+
+    var lockInput: HBox by singleAssign()
+
+    var bruteForcing = false
+
+    val broken = SimpleBooleanProperty(false)
+
+    var picked = false
+
+    var adminbox: HBox by singleAssign()
+
+    var brutesuccess = false
+
+    lateinit var T: Thread
+
+    init {
+        adminmode.onChange {
+            with(adminlabel) {
+                if (lock.adminMode) {
+                    text = "Admin Access Active"
+                    style(true) {
+                        borderColor += box(Color.GREEN)
+                    }
+                } else {
+                    text = "Admin Access Inactive"
+                    style(true) {
+                        borderColor += box(Color.BLACK)
+                    }
+                }
+            }
+        }
+    }
+
+    enum class Status {
+        Locked, Unlocked, Broken, Clear
+    }
+
+    fun setStatus(stat: Status) {
+        with (lockInput) {
+            when (stat) {
+
+                Status.Locked -> {
+                    style(true) {
+                        backgroundColor += tornadofx.c(255, 0, 0)
+                    }
+                }
+
+                Status.Unlocked -> {
+                    style(true) {
+                        backgroundColor += tornadofx.c(0, 255, 0)
+                    }
+                }
+
+                Status.Broken -> {
+                    style(true) {
+                        backgroundColor += tornadofx.c(128, 0, 142)
+                    }
+                }
+
+                Status.Clear -> {
+                    style(true) {
+                        backgroundColor += Color.TRANSPARENT
+                    }
+                }
+
+                else -> {
+
+                    ;
+
+                }
+
+
+            }
+        }
+    }
+
+    override val root =
+        borderpane {
+
+            fun disable(b: Boolean) {
+                fun loop(p: Parent) {
+                    for (child in p.getChildList()!!.listIterator()) {
+                        if (child is Control) {
+                            if (child !in adminbox.children) {
+                                child.isDisable = b
+                            }
+                        } else if (child is Parent) {
+                            loop(child)
+                        }
+                    }
+                }
+                loop(this@borderpane)
+            }
+
+            center {
+                vbox {
+
+                    style {
+                        alignment = Pos.CENTER
+                        spacing = 30.px
+                    }
+
+                    lockInput = hbox {
+
+                        val regex = Regex("\\d")
+
+                        class LockInput : TextField() {
+
+                            init {
+
+                                promptText = "0"
+
+                                textProperty().addListener { _, old, new ->
+                                    if (regex.matches(new)) {
+
+                                        with(this@hbox.children) {
+                                            val index = indexOf(this@LockInput)
+                                            if (index < size - 1) {
+                                                get(index + 1).requestFocus()
+                                                (get(index + 1) as TextField).selectEnd()
+                                            }
+                                        }
+                                    } else if (regex.matches(old) and (new != "")) {
+                                        Platform.runLater {
+                                            if (regex.containsMatchIn(new.replaceFirst(old, ""))) {
+                                                text = new.replaceFirst(old, "")
+                                            } else {
+                                                text = old
+                                            }
+                                            this@LockInput.selectHome()
+                                        }
+                                    } else {
+                                        Platform.runLater {
+                                            text = ""
+                                        }
+                                    }
+
+                                    if (lockInputs.all { !it.text.isEmpty() }) {
+                                        val input = lockInputs.map { try { it.text.toInt() } catch (e: NumberFormatException) {-1} }.filter { it >= 0 }.toIntArray()
+                                        if ((input.size == 4) and lock.unlock(input)) {
+                                            setStatus(Status.Unlocked)
+                                            if (T.isAlive && bruteForcing) {
+                                                brutesuccess = true
+                                                T.interrupt();
+                                            }
+                                        } else {
+                                            lock.lock()
+                                            setStatus(Status.Locked)
+                                        }
+                                    } else {
+                                        setStatus(Status.Clear)
+                                    }
+
+                                }
+
+                                setOnKeyPressed {
+                                    if (it.code == KeyCode.BACK_SPACE && text == "") {
+                                        with(this@hbox.children) {
+                                            val index = indexOf(this@LockInput)
+                                            if (index > 0) {
+                                                get(index - 1).requestFocus()
+                                                (get(index - 1) as TextField).selectEnd()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                style {
+
+                                    accentColor = Color.TRANSPARENT
+
+                                    fontSize = 40.px
+
+                                    textFill = Color.BLACK
+
+                                    fontFamily = "monospace"
+
+                                    alignment = Pos.CENTER
+
+                                    maxWidth = 50.px
+
+                                    paddingAll = 0
+
+                                    borderColor += box(Color.BLACK)
+
+                                    focusColor = Color.TRANSPARENT
+
+                                    faintFocusColor = Color.TRANSPARENT
+
+                                    borderRadius += box(0.0.px)
+
+                                    backgroundRadius += box(0.0.px)
+
+                                }
+
+                            }
+
+                        }
+
+                        style {
+                            spacing = Dimension(5.0, Dimension.LinearUnits.px)
+                            paddingAll = 10
+                            alignment = Pos.CENTER
+                        }
+
+                        lockInputs = mutableListOf(LockInput(), LockInput(), LockInput(), LockInput())
+
+                        lockInputs.forEach { add(it) }
+
+                        button("More...") {
+                            action {
+                                val newinp = LockInput()
+                                this@hbox.children.add(this@hbox.children.size-2, newinp)
+                                lockInputs.add(newinp)
+                            }
+                        }
+
+                    }
+
+                    hbox {
+
+                        style {
+
+                            alignment = Pos.CENTER
+
+                            spacing = 20.px
+
+                        }
+
+                        label("Health:")
+
+                        hbar = progressbar {
+
+                            style {
+
+                                borderColor += box(Color.TRANSPARENT)
+
+                                backgroundColor += Color.TRANSPARENT
+
+                            }
+
+                            progress = lock.health / 100.0
+
+                        }
+
+                        button("Attack Lock") {
+                            action {
+                                lock.damageLock()
+
+                                hbar.progress = lock.health / 100.0
+
+                                if (lock.broken) {
+                                    disable(true)
+
+                                    broken.value = true
+
+                                    passfield.isDisable = false
+
+                                    adminlabel.isDisable = false
+
+                                    passfield.text = ""
+
+                                    setStatus(Status.Broken)
+
+                                    adminmode.value = false
+
+                                    lock.leaveAdmin()
+
+                                }
+
+                            }
+                        }
+
+                        button("Brute Force") {
+
+                            action {
+
+                                //isDisable = true
+
+                                if (bruteForcing) {
+                                    T.interrupt()
+                                    bruteForcing = false
+                                    return@action
+                                }
+
+                                text = "Stop"
+
+                                val lockInputs = lockInput.children.map { it as TextField }
+
+                                disable(true)
+
+                                passfield.text = ""
+
+                                adminmode.value = false
+
+                                isDisable = false
+
+                                //lockInputs.withEach { isDisable = true }
+
+                                fun tryCombination(combination: IntArray) {
+
+                                    for (x in 0..lockInputs.size) {
+                                        lockInputs[x].text = combination[x].toString()
+                                    }
+
+                                }
+
+                                T = Thread {
+
+                                    bruteForcing = true
+
+                                    for (x in 0..10000) {
+
+                                        if (lock.unlock(digits(x))) {
+                                            runLater { tryCombination(digits(x)); information(header = "Lock opened", content = "Combination: ${Arrays.toString(digits(x))}\nTook $x attempts") }
+                                            break
+                                        }
+
+                                        //println(Arrays.toString(digits(x)))
+
+                                        //runLater { tryCombination(digits(x)); println(lock.locked) ; if (!lock.locked) stop = true }
+
+                                        try {
+                                            Thread.sleep(50)
+                                        } catch (e: InterruptedException) {
+                                            break
+                                        }
+
+                                    }
+
+                                    Platform.runLater {
+
+                                        if (lock.locked) {
+
+                                            lockInputs.withEach { text = ""; isDisable = false }
+
+                                        }
+
+                                        disable(false)
+
+                                        this@button.isDisable = false
+
+                                        this@button.text = "Brute Force"
+
+                                    }
+
+                                    bruteForcing = false
+
+                                    brutesuccess = false
+
+                                }.also{ it.isDaemon = true; it.start(); it }
+
+                            }
+                        }
+                        button("Pick lock (0)") {
+                            action {
+
+                                if (picked) {
+
+                                    picked = false
+
+                                    text = "Pick lock (0)"
+
+                                    disable(false)
+
+                                    setStatus(Status.Clear)
+
+                                } else {
+
+                                    if (!lock.pick()) {
+
+                                        picked = true
+
+                                        setStatus(Status.Unlocked)
+
+                                        text = "Reset"
+
+                                        disable(true)
+
+                                        isDisable = false
+
+                                        information(header = "Lock picked")
+
+                                    } else {
+
+                                        text = text.replace(Regex("\\(\\d*\\)"), "(${lock.pickAttempts})")
+
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+
+                    hbox {
+                        passfield = passwordfield {
+
+                            promptText = "Password"
+
+                            setOnKeyReleased {
+                                adminmode.value = lock.adminMode(passfield.text)
+                            }
+
+                            style {
+
+                                focusColor = Color.TRANSPARENT
+
+                                faintFocusColor = Color.TRANSPARENT
+
+                                borderRadius += box(0.px)
+
+                                backgroundRadius += box(0.px)
+
+                                borderColor += box(Color.BLACK)
+
+                                fontSize = 10.px
+
+                            }
+
+                        }
+
+                        adminlabel = label("Admin Access Inactive") {
+                            style {
+                                borderColor += box(Color.BLACK)
+                                paddingAll = 5
+                            }
+                        }
+
+                        style {
+                            alignment = Pos.CENTER
+                            spacing = 25.px
+                        }
+
+                    }
+                    hbox {
+
+                        style {
+                            alignment = Pos.CENTER
+                        }
+
+                        button("Save") {
+                            action {
+                                val file = FileChooser().showSaveDialog(currentWindow)
+                                file?.let {
+                                    lock.save(it.absolutePath)
+                                }
+                            }
+                        }
+                        button("Load") {
+                            action {
+                                val file = FileChooser().showOpenDialog(currentWindow)
+                                file?.let {
+                                    lock.load(it.absolutePath)
+                                }
+                            }
+                        }
+                    }
+                    adminbox = hbox {
+
+                        style {
+                            alignment = Pos.CENTER
+                        }
+
+                        button("Show combination") {
+                            action {
+                                dialog(title = "Lock Combination") {
+                                    label(Arrays.toString(lock.combination))
+                                }
+                            }
+                        }
+
+                        val healthbut = button("Reset health") {
+                            action {
+                                lock.resetHealth()
+                                hbar.progress = lock.health / 100.0
+                                setStatus(Status.Clear)
+                                disable(false)
+                                broken.value = false
+                            }
+                        }
+
+                        button("Set min / max") {
+                            action {
+                                val dialog = Dialog<Pair<Int, Int>>()
+                                dialog.title = "Change min / max"
+                                dialog.dialogPane.buttonTypes.setAll(ButtonType.OK, ButtonType.CANCEL)
+
+                                val sp1 = Spinner<Int>(0, 9999, 0, 1)
+                                val sp2 = Spinner<Int>(0, 9999, 0, 1)
+
+                                dialog.dialogPane.content = vbox {
+                                    style {
+                                        spacing = 10.px
+                                    }
+                                    hbox {
+                                        label("Min: ")
+                                        sp1.addTo(this@hbox)
+                                    }
+                                    hbox {
+                                        label("Max: ")
+                                        sp2.addTo(this@hbox)
+                                    }
+                                }
+                                dialog.setResultConverter {
+                                    it?.let {
+                                        sp1.value to sp2.value
+                                    }
+                                }
+                                dialog.dialogPane.lookupButton(ButtonType.OK).addEventFilter(ActionEvent.ACTION) {
+                                    if (sp1.value > sp2.value) {
+                                        it.consume()
+                                        dialog.dialogPane.isDisable = true
+                                        warning("Min cannot be larger than max", buttons = ButtonType.OK)
+                                        dialog.dialogPane.isDisable = false
+                                    }
+                                }
+                                dialog.showAndWait().ifPresent {
+                                    lock.min = digits(it.first)
+                                    lock.max = digits(it.second)
+                                }
+                                dialog.close()
+                            }
+                        }
+
+                        button("Change password") {
+                            action {
+                                var prop = ""
+                                dialog() {
+                                    field("New password") {
+                                        textfield().textProperty().onChange { it?.let{ prop = it } }
+                                    }
+                                    button("Save") {
+                                        isDefaultButton = true
+                                        action {
+                                            lock.password = prop
+                                            lock.leaveAdmin()
+                                            adminmode.value = false
+                                            passfield.text = ""
+                                            this@dialog.close()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        this@hbox.children.forEach { node ->
+                            node?.let { node ->
+                                node.isDisable = true
+                                if (node == healthbut) {
+                                    node.disableProperty().bind(adminmode.not())
+                                } else {
+                                    adminmode.onChange {
+                                        node.isDisable = !(adminmode.value && !broken.value)
+                                    }
+                                    broken.onChange {
+                                        node.isDisable = !(adminmode.value && !broken.value)
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
+    init {
+
+        with (currentWindow!!) {
+            width = 640.0
+            height = 480.0
+        }
+
+        currentWindow!!.centerOnScreenimpl()
+
+        title = "Combination Lock"
+
+    }
+
+}
+
+fun main(args: Array<String>) {
+    Application.launch(LockApp::class.java, *args)
+}
+
+fun Window.centerOnScreenimpl() {
+
+    val screen = Screen.getPrimary().visualBounds
+
+    x = (screen.width - width) / 2
+
+    y = (screen.height - height) / 2
+
+}
+
+fun digits(x: Int): IntArray {
+
+    var ptr: Int = 3
+
+    val arr = IntArray(4)
+
+    while (ptr >= 0) {
+
+        arr[ptr--] = ((x / 10.0.pow(3 - ptr)) % 10).toInt()
+
+    }
+
+    return arr
+
+}
