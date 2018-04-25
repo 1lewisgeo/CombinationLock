@@ -106,7 +106,7 @@ fun main(args: Array<String>) {
 
     assert(lock.min == 0) // Check default
 
-    lock.min = 2 // Set new min
+    assert(lock.setMin(2)) // Change min
 
     assert(lock.min == 2) // Check that the value stuck
 
@@ -116,7 +116,7 @@ fun main(args: Array<String>) {
 
     assert(lock.max == 9) // Check default
 
-    lock.max = 7 // Change max
+    assert(lock.setMax(7)) // Change max
 
     assert(lock.max == 7) // Check max for new value
 

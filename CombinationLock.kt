@@ -81,11 +81,13 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(9)
      * The minimum value for each digit of the lock
      */
     override var min = 0
+        private set
 
     /**
      * The maximum vallue for each digit of the lock
      */
     override var max = 9
+        private set
 
     /**
      * The admin status of the lock, true is admin mode enabled, false is admin mode disabled
@@ -96,7 +98,7 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(9)
     /**
      * The admin password for the lock. By default "DEFAULT".
      */
-    override var password: String = "DEFAULT"
+    override var password: String = "george"
         set(value) {
             if (adminMode and !broken) {
                 field = value
@@ -253,6 +255,24 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(9)
 
     override fun toString(): String {
         return "{Combination : ${Arrays.toString(combination_)}, Health : $health}"
+    }
+
+    fun setMin(i: Int): Boolean {
+        if (adminMode and !broken && i < max) {
+            min = i
+            return true
+        } else {
+            return false
+        }
+    }
+
+    fun setMax(i: Int): Boolean {
+        if (adminMode and !broken && i > min) {
+            max = i
+            return true
+        } else {
+            return false
+        }
     }
 
 }

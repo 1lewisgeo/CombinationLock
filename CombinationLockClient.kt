@@ -24,6 +24,7 @@ fun main(args: Array<String>) {
         if (lock.broken || !lock.validateCombination()) {
             print("==================COMMANDS==================\n" +
                     "| 5. ENTER ADMIN\n" +
+                    "| 7. EXIT (Exit the program)\n" +
                     "============================================\n")
         } else {
             print("==================COMMANDS==================\n" +
@@ -45,6 +46,8 @@ fun main(args: Array<String>) {
             } else if (!lock.validateCombination()) {
                 println("===================ADMIN====================\n" +
                         "| 9. SET COMBINATION (Set the lock's combination)\n" +
+                        "| 13. SET MIN (Set the lock's minimum value)\n" +
+                        "| 14. SET MAX (Set the lock's maximum value)\n" +
                         "============================================\n")
             } else {
                 print("===================ADMIN====================\n" +
@@ -90,7 +93,7 @@ fun main(args: Array<String>) {
             continue@outer
         }
 
-        if (!lock.validateCombination() && input !in intArrayOf(5, 9)) {
+        if (!lock.validateCombination() && input !in intArrayOf(5, 9, 7, 13, 14)) {
             println("You must change the combination")
             continue@outer
         }
@@ -165,10 +168,6 @@ fun main(args: Array<String>) {
                         val tryc = IntArray(size, { 0 })
 
                         while (!tryc.any { it > max }) {
-
-                            if ((unlockAttempts - start) % 10 == 0 && unlockAttempts - start > 10) {
-                                println("${unlockAttempts - start} attempts...")
-                            }
 
                             tryc[size - 1]++
 
@@ -252,12 +251,12 @@ fun main(args: Array<String>) {
             13 -> {
                 // Set min
                 println("Please enter a single number to be the minimum value for each number of the lock")
-                readLine()?.toInt()?.let { lock.min = it; println("Minimum set to $it") }
+                readLine()?.toInt()?.let { if (lock.setMin(it)) println("Minimum set to $it") else println("Failed to set minimum") }
             }
             14 -> {
                 // Set max
                 println("Please enter a single number to be the maximum value for each number of the lock")
-                readLine()?.toInt()?.let { lock.max = it; println("Maximum set to $it") }
+                readLine()?.toInt()?.let { if (lock.setMax(it)) println("Maximum set to $it") else println("Failed to set maximum") }
             }
             15 -> { lock.leaveAdmin(); println("Left admin mode") }
             16 -> {

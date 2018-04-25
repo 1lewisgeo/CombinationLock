@@ -10,9 +10,9 @@ interface ICombinationLock {
 
     val pickAttempts: Int
 
-    var min: Int
+    val min: Int
 
-    var max: Int
+    val max: Int
 
     val adminMode: Boolean
 
