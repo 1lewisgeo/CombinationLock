@@ -25,7 +25,7 @@ fun File.ObjectInputStream(): ObjectInputStream = ObjectInputStream(inputStream(
  * An encapsulated class representing a combination lock
  * @constructor Construct a new instance with the specified combination or a randomized one
  */
-class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10) })) : ICombinationLock {
+class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(9) })) : ICombinationLock {
 
     /**
      * Run with constructors, checks for minimum combination length
@@ -168,7 +168,7 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10
      * @return returns true if saving the lock was successful and false if it was not
      */
     override fun save(filename: String): Boolean {
-        if (adminMode) {
+        if (adminMode and !broken) {
             try {
                 File(filename).ObjectOutputStream().use {
                     for (x in listOf(
@@ -196,7 +196,7 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10
      * @param filename a valid filename / path to load the lock from according to [File]
      */
     override fun load(filename: String): Boolean {
-        if (adminMode) {
+        if (adminMode and !broken) {
             try {
                 File(filename).ObjectInputStream().use {
                     for (i in 0..7) {
@@ -227,7 +227,7 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10
      */
     override fun setCombination(combination: IntArray): Boolean {
         if (!broken and adminMode) {
-            if (combination.all { it in min..(max+1) } && combination.size >= 3) {
+            if (combination.all { it in min..max } && combination.size >= 3) {
                 this.combination = combination
                 lock()
                 return true
@@ -243,7 +243,13 @@ class CombinationLock(private var combination_: IntArray = IntArray(3, { rand(10
      * Validates the combination based upon the min and max values
      * @return returns true if the combination is valid, false otherwise
      */
-    fun validateCombination() = combination_.all { it >= min && it <= max }
+    fun validateCombination() = combination_.all { it in min..max }
+
+    /**
+     * Randomizes the lock's combination
+     * @return returns true if the combination was randomized successfully
+     */
+    fun randomizeCombination(): Boolean = setCombination(IntArray(size, { rand(max, min) }))
 
     override fun toString(): String {
         return "{Combination : ${Arrays.toString(combination_)}, Health : $health}"

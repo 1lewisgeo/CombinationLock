@@ -261,7 +261,7 @@ fun main(args: Array<String>) {
             }
             15 -> { lock.leaveAdmin(); println("Left admin mode") }
             16 -> {
-                lock.setCombination(IntArray(lock.size, { rand(lock.max, lock.min) }))
+                lock.randomizeCombination()
                 println("Combination randomized")
             }
             17 -> {
